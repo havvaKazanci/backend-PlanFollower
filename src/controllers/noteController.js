@@ -40,3 +40,27 @@ exports.getUserNotes = async (req, res) => {
         res.status(500).json({ error: "Server error while fetching notes" });
     }
 };
+
+
+// Delete a specific note
+exports.deleteNote = async (req, res) => {
+    const { id } = req.params; 
+    const userId = req.user.userId; //  uuid comes from middleware (for security used middleware)
+
+    try {
+        
+        const deletedNote = await pool.query(
+            "DELETE FROM notes WHERE id = $1 AND user_id = $2 RETURNING *",
+            [id, userId]
+        );
+
+        if (deletedNote.rows.length === 0) {
+            return res.status(404).json({ message: "Note not found or unauthorized" });
+        }
+
+        res.status(200).json({ message: "Note deleted successfully" });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ error: "Server error during deletion" });
+    }
+};

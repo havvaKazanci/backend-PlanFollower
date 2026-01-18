@@ -9,4 +9,8 @@ router.post('/', authMiddleware, noteController.createNote);
 // GET /api/notes - Retrieve user-specific notes
 router.get('/', authMiddleware, noteController.getUserNotes);
 
+
+// DELETE /api/notes/:id - Route to delete a note
+router.delete('/:id', authMiddleware, noteController.deleteNote);
+
 module.exports = router;
