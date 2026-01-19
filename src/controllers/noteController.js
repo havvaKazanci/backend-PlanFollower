@@ -64,3 +64,26 @@ exports.deleteNote = async (req, res) => {
         res.status(500).json({ error: "Server error during deletion" });
     }
 };
+
+
+exports.updateNote = async (req, res) => {
+    const { id } = req.params; // note id
+    const { title, content } = req.body; // new title and content
+    const userId = req.user.userId; // user uid
+
+    try {
+        const updatedNote = await pool.query(
+            "UPDATE notes SET title = $1, content = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND user_id = $4 RETURNING *",
+            [title, content, id, userId]
+        );
+
+        if (updatedNote.rows.length === 0) {
+            return res.status(404).json({ message: "Note not found or unauthorized" });
+        }
+
+        res.status(200).json(updatedNote.rows[0]);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server Error");
+    }
+};

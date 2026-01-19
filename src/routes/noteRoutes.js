@@ -13,4 +13,7 @@ router.get('/', authMiddleware, noteController.getUserNotes);
 // DELETE /api/notes/:id - Route to delete a note
 router.delete('/:id', authMiddleware, noteController.deleteNote);
 
+
+router.put('/:id', authMiddleware, noteController.updateNote); //update with put request
+
 module.exports = router;
