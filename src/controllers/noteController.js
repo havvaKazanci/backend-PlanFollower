@@ -27,17 +27,27 @@ exports.getUserNotes = async (req, res) => {
     // uuid comes from middleware (for security used middleware)
     const userId = req.user.userId; 
 
-    try {
-        // fetch notes belonging to this user, sorted by newest first
-        const notes = await pool.query(
-            "SELECT * FROM notes WHERE user_id = $1 ORDER BY created_at DESC",
-            [userId]
-        );
+    const { search } = req.query;
+    
 
+    try {
+        let query = "SELECT * FROM notes WHERE user_id = $1";
+        let params = [userId];
+
+        // Eğer arama terimi varsa sorguyu dinamikleştiriyoruz
+        if (search) {
+            query += " AND (title ILIKE $2 OR content ILIKE $2)";
+            params.push(`%${search}%`);
+        }
+        
+        query += " ORDER BY created_at DESC";
+
+        const notes = await pool.query(query, params);
         res.status(200).json(notes.rows);
     } catch (err) {
-        console.error("Fetch Notes Error:", err.message);
-        res.status(500).json({ error: "Server error while fetching notes" });
+        // Terminaldeki hatayı bu satır yazdırıyor
+        console.error("Fetch Notes Error:", err.message); 
+        res.status(500).send("Server Error");
     }
 };
 
