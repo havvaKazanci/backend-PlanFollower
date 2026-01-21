@@ -31,23 +31,25 @@ exports.getUserNotes = async (req, res) => {
     
 
     try {
-        let query = "SELECT * FROM notes WHERE user_id = $1";
+        let query = `
+            SELECT * FROM notes WHERE user_id = $1 
+            UNION 
+            SELECT n.* FROM notes n 
+            JOIN shared_notes sn ON n.id = sn.note_id 
+            WHERE sn.shared_with_user_id = $1
+        `;
         let params = [userId];
 
-        // Eğer arama terimi varsa sorguyu dinamikleştiriyoruz
+        //searching both shared and listed notes
         if (search) {
-            query += " AND (title ILIKE $2 OR content ILIKE $2)";
+            query = `SELECT * FROM (${query}) AS all_notes WHERE title ILIKE $2 OR content ILIKE $2`;
             params.push(`%${search}%`);
         }
-        
-        query += " ORDER BY created_at DESC";
 
         const notes = await pool.query(query, params);
         res.status(200).json(notes.rows);
     } catch (err) {
-        // Terminaldeki hatayı bu satır yazdırıyor
-        console.error("Fetch Notes Error:", err.message); 
-        res.status(500).send("Server Error");
+        res.status(500).send("Server error.");
     }
 };
 
@@ -95,5 +97,43 @@ exports.updateNote = async (req, res) => {
     } catch (err) {
         console.error(err.message);
         res.status(500).send("Server Error");
+    }
+};
+
+
+exports.shareNote = async (req, res) => {
+    const { id } = req.params; 
+    const { email } = req.body; 
+    const ownerId = req.user.userId;
+
+    try {
+        //Is there any user like this mail
+        const userResult = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: "No person like that, incorret email." });
+        }
+        const sharedWithUserId = userResult.rows[0].id;
+
+        //You only can share a note if its yours
+        const noteOwnerCheck = await pool.query("SELECT * FROM notes WHERE id = $1 AND user_id = $2", [id, ownerId]);
+        if (noteOwnerCheck.rows.length === 0) {
+            return res.status(403).json({ message: "You cannot share this note." });
+        }
+
+        //you cannot share a note yourself
+        if (sharedWithUserId === ownerId) {
+            return res.status(400).json({ message: "You cannot share a note to yourself" });
+        }
+
+        //save process
+        await pool.query(
+            "INSERT INTO shared_notes (note_id, shared_with_user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            [id, sharedWithUserId]
+        );
+
+        res.status(200).json({ message: "Note successfully saved." });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server error.");
     }
 };

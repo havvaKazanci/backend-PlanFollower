@@ -16,4 +16,7 @@ router.delete('/:id', authMiddleware, noteController.deleteNote);
 
 router.put('/:id', authMiddleware, noteController.updateNote); //update with put request
 
+
+router.post('/:id/share', authMiddleware, noteController.shareNote);
+
 module.exports = router;
