@@ -131,7 +131,23 @@ exports.shareNote = async (req, res) => {
             [id, sharedWithUserId]
         );
 
-        res.status(200).json({ message: "Note successfully saved." });
+        const io = req.app.get('socketio'); 
+        const onlineUsers = req.app.get('onlineUsers'); //map structure
+        
+        const recipientSocketId = onlineUsers.get(sharedWithUserId);
+
+        if (recipientSocketId) {
+            
+            io.to(recipientSocketId).emit('new_notification', {
+                title: 'New note shared!',
+                message: `${req.user.username || 'Someone'} share a note with you.`,
+                noteId: id //uuid when clicked
+            });
+        }
+
+    
+
+        res.status(200).json({ message: "Note successfully saved and notification sent." });
     } catch (err) {
         console.error(err.message);
         res.status(500).send("Server error.");
