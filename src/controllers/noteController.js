@@ -125,10 +125,10 @@ exports.shareNote = async (req, res) => {
             return res.status(400).json({ message: "You cannot share a note to yourself" });
         }
 
-        //save process
+        const notificationMsg = `${req.user.username || 'A user'} share note with you.`;
         await pool.query(
-            "INSERT INTO shared_notes (note_id, shared_with_user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-            [id, sharedWithUserId]
+            "INSERT INTO notifications (recipient_id, sender_id, note_id, message) VALUES ($1, $2, $3, $4)",
+            [sharedWithUserId, ownerId, id, notificationMsg]
         );
 
         const io = req.app.get('socketio'); 
@@ -151,5 +151,57 @@ exports.shareNote = async (req, res) => {
     } catch (err) {
         console.error(err.message);
         res.status(500).send("Server error.");
+    }
+};
+
+
+exports.getUnreadNotifications = async (req, res) => {
+    const userId = req.user.userId; // UUID
+    try {
+        const result = await pool.query(
+            "SELECT * FROM notifications WHERE recipient_id = $1 AND is_read = FALSE ORDER BY created_at DESC",
+            [userId]
+        );
+        res.status(200).json(result.rows);
+    } catch (err) {
+        res.status(500).send("Server error.");
+    }
+};
+
+// mark a specific notification as read
+exports.markAsRead = async (req, res) => {
+    const { id } = req.params; // notification id serial
+    const userId = req.user.userId;
+
+    try {
+        const result = await pool.query(
+            "UPDATE notifications SET is_read = TRUE WHERE id = $1 AND recipient_id = $2 RETURNING *",
+            [id, userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "Notification not found or unauthorized access." });
+        }
+
+        res.status(200).json({ message: "Notification marked as read successfully." });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server error occurred while updating notification status.");
+    }
+};
+
+// mark all notifications as read for the user
+exports.markAllAsRead = async (req, res) => {
+    const userId = req.user.userId;
+
+    try {
+        await pool.query(
+            "UPDATE notifications SET is_read = TRUE WHERE recipient_id = $1",
+            [userId]
+        );
+        res.status(200).json({ message: "All notifications marked as read." });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server error occurred while clearing notifications.");
     }
 };

@@ -19,4 +19,8 @@ router.put('/:id', authMiddleware, noteController.updateNote); //update with put
 
 router.post('/:id/share', authMiddleware, noteController.shareNote);
 
+router.get('/notifications', authMiddleware, noteController.getUnreadNotifications);
+router.patch('/notifications/:id/read', authMiddleware, noteController.markAsRead);
+router.patch('/notifications/read-all', authMiddleware, noteController.markAllAsRead);
+
 module.exports = router;
