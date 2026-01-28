@@ -125,6 +125,12 @@ exports.shareNote = async (req, res) => {
             return res.status(400).json({ message: "You cannot share a note to yourself" });
         }
 
+
+        await pool.query(
+        "INSERT INTO shared_notes (note_id, shared_with_user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        [id, sharedWithUserId]
+        );
+        
         const notificationMsg = `${req.user.username || 'A user'} share note with you.`;
         await pool.query(
             "INSERT INTO notifications (recipient_id, sender_id, note_id, message) VALUES ($1, $2, $3, $4)",
